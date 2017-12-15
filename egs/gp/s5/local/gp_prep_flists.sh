@@ -83,6 +83,19 @@ egrep 'XXX|TBA' $tmpdir/eval_spk \
 # We are going to use the 2-letter codes throughout, but the top-level 
 # directories of the GlobalPhone corpus use the full names of languages.
 full_name=`awk '/'$LCODE'/ {print $2}' $LANGMAP`;
+if [ $full_name == "Turkish" ]; then
+    full_name="Turkish/Turkish" # Turkish is nested in another subfolder
+elif [ $full_name == "Thai" ]; then
+    full_name="Thai/Thai" # Thai is nested in another subfolder
+elif [ $full_name == "Bulgarian" ]; then
+    full_name="Bulgarian/Bulgarian" # Bulgarian is nested in another subfolder
+elif [ $full_name == "Korean" ]; then
+    full_name="Korean/Korean" # Korean is nested in another subfolder
+elif [ $full_name == "Vietnamese" ]; then
+    full_name="Vietnamese/Vietnamese" # Vietnamese is nested in another subfolder
+elif [ $full_name == "Hausa" ]; then
+    full_name="Hausa/Hausa/Data" # Hausa is nested in another subfolder
+fi
 ls "$GPDIR/$full_name/adc" | sed -e "s?^?$LCODE?" -e 's?$?_?' \
   > $tmpdir/all_spk
 grep -v -f $tmpdir/dev_spk -f $tmpdir/eval_spk $tmpdir/all_spk \
@@ -114,7 +127,7 @@ ODIR=$WDIR/$LCODE/local/data     # Directory to write file lists & transcripts
 mkdir -p $ODIR $WDIR/$LCODE/wav  # Directory for WAV files
 
 for x in dev eval train; do
-  find $GPDIR/$full_name/adc -name "${LCODE}*\.adc\.shn" \
+  find $GPDIR/$full_name/adc -name "${LCODE}*\.adc*" \
     | grep -f $tmpdir/${x}_spk > $ODIR/${x}_${LCODE}.flist
   # The audio conversion is done here since some files cannot be converted,
   # and those need to be removed from the file lists.

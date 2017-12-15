@@ -73,10 +73,17 @@ nshnerr=0;
 nsoxerr=0;
 
 while read line; do
-  [[ "$line" =~ ^.*/.*\.adc.shn$ ]] || { echo "Bad line: '$line'"; exit 1; }
-  set +e  # Don't want script to die if conversion fails.
-  b=`basename $line .adc.shn`; 
-  shorten -x $line $tmpdir/raw/${b}.raw;
+  # Hausa needs special treatment because its audio is not shortened
+  if [[ "$line" =~ ^.*/.*\.adc$ ]]; then
+      set +e  # Don't want script to die if conversion fails.
+      b=`basename $line .adc`
+      cp $line $tmpdir/raw/${b}.raw
+  else
+      [[ "$line" =~ ^.*/.*\.adc.shn$ ]] || { echo "Bad line: '$line'"; exit 1; }
+      set +e  # Don't want script to die if conversion fails.
+      b=`basename $line .adc.shn`;
+      shorten -x $line $tmpdir/raw/${b}.raw;
+  fi
   if [ $? -ne 0 ]; then
     echo "$line" >> $shnerr;
     let "nshnerr+=1"
