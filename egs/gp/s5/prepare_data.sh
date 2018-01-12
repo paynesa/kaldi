@@ -25,7 +25,7 @@
 # limitations under the License.
 
 # Set the languages that will be processed
-GP_LANGUAGES=$1
+export GP_LANGUAGES=$1
 
 # This script prepares the data for different languages of the GlobalPhone corpus.
 echo "This shell script may run as-is on your system, but it is recommended
@@ -40,10 +40,6 @@ that you run the commands one by one by copying and pasting into the shell."
 #local/gp_check_tools.sh $PWD path.sh || exit 1;
 
 . path.sh || { echo "Cannot source path.sh"; exit 1; }
-
-# Set the locations of the GlobalPhone corpus and language models
-GP_CORPUS=/group/corporapublic/global_phone/
-GP_LM=/disk/scratch/s1680167/zero/data/gp_language_models/
 
 # Copy normalization scripts from Czech if they don't exist yet.
 for L in $GP_LANGUAGES; do
