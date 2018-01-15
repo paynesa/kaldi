@@ -27,4 +27,4 @@ export PATH=$SOX_BIN:$PATH
 # Set the locations of the GlobalPhone corpus and language models
 export GP_CORPUS=/group/corporapublic/global_phone/
 export GP_LM=$DATA/gp_language_models/
-
+export ALIGN_DIR=$DATA/gp_alignments
