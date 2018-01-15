@@ -69,3 +69,10 @@ done
 for L in $GP_LANGUAGES; do
     local/gp_format_lm.sh --filter-vocab-sri true $GP_LM $L &
 done
+
+for L in $GP_LANGUAGES; do
+    for x in train dev eval; do
+        utils/fix_data_dir.sh data/$L/$x
+        utils/validate_data_dir.sh --no-feats data/$L/$x
+    done
+done

@@ -117,7 +117,7 @@ ODIR=$WDIR/$LCODE/local/data     # Directory to write file lists & transcripts
 mkdir -p $ODIR $WDIR/$LCODE/wav  # Directory for WAV files
 
 for x in dev eval train; do
-  find $GPDIR/$full_name/adc -name "${LCODE}*\.adc*" \
+  find $GPDIR/$full_name/adc -name "${LCODE}*\.adc*" | grep -v "wav" \
     | grep -f $tmpdir/${x}_spk > $ODIR/${x}_${LCODE}.flist
   # The audio conversion is done here since some files cannot be converted,
   # and those need to be removed from the file lists.

@@ -41,10 +41,11 @@ GP_CORPUS=/group/corporapublic/global_phone/
 export GP_LANGUAGES="SP"
 
 # Compute energy-based VAD.
-if [ "$stage" -le 0 && "$feats" == "mfcc" ]; then
+if [ "$stage" -le 0 ] && [ "$feats" == "mfcc" ]; then
     for L in $GP_LANGUAGES; do
         for x in train dev eval; do
             $KALDI_ROOT/egs/sre08/v1/sid/compute_vad_decision.sh data/$L/${x}_mfcc exp/$L/vad_log vad/$L
+            mkdir data/$L/${x}_plp/
             cp data/$L/${x}_mfcc/vad.scp data/$L/${x}_plp/
         done
     done
