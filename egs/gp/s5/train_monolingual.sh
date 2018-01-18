@@ -183,11 +183,12 @@ fi
 # Align tri3
 if [ $stage -le 9 ]; then
     for L in $GP_LANGUAGES; do
+        (
         mkdir -p exp/$L/tri3_ali
         steps/align_fmllr.sh --nj 10 --cmd "$train_cmd" --use-graphs true \
 			     data/$L/train_mfcc data/$L/lang exp/$L/tri3 \
 			     exp/$L/tri3_ali >& exp/$L/tri3_ali/align.log
-        wait;
+        ) &
     done
     wait;
 fi

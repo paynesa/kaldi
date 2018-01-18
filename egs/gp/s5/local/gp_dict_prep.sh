@@ -74,9 +74,9 @@ for L in $LANGUAGES; do
   full_name=`awk '/'$L'/ {print $2}' $config_dir/lang_codes.txt`;
   pron_lex=$GPDIR/Dictionaries/${L}/${full_name}-GPDict.txt
   if [ ! -f "$pron_lex" ] && [ "$L" == "SW" ]; then
-      pron_lex=$GPDIR/Dictionaries/SV/${full_name}-GPDict.txt  # Swedish
+      pron_lex=$GPDIR/Dictionaries/SW/${full_name}-GPDict.txt  # Swedish
   elif [ ! -f "$pron_lex" ] && [ "$L" == "SA" ]; then
-      pron_lex=$GPDIR/Dictionaries/SW/${full_name}-GPDict.txt  # Swahili
+      pron_lex=$GPDIR/Dictionaries/SA/${full_name}-GPDict.txt  # Swahili
   elif [ ! -f "$pron_lex" ] && [ "$L" == "CH" ]; then
       pron_lex=$GPDIR/Dictionaries/MA/${full_name}-GPDict.txt  # Mandarin
   elif [ ! -f "$pron_lex" ] && [ "$L" == "TH" ]; then
@@ -86,12 +86,9 @@ for L in $LANGUAGES; do
   elif [ ! -f "$pron_lex" ] && [ "$L" == "BG" ]; then
       pron_lex=$GPDIR/Dictionaries/BL/${full_name}GP.dict      # Bulgarian
   elif [ ! -f "$pron_lex" ] && [ "$L" == "PL" ]; then
-      pron_lex=$GPDIR/Dictionaries/BL/${full_name}GP.dict      # Polish
+      pron_lex=$GPDIR/Dictionaries/PL/${full_name}GP.dict      # Polish
   fi
-  if [ ! -f "$pron_lex" ]; then
-    pron_lex=$GPDIR/Dictionaries/${L}/${full_name}GP.dict  # Polish & Bulgarian
-    [ -f "$pron_lex" ] || { echo "Error: no dictionary found for $L"; exit 1; }
-  fi
+  [ -f "$pron_lex" ] || { echo "Error: no dictionary found for $L"; exit 1; }
 
   if [ ! -z "$map_dir" ]; then  # map the phones to a different phoneset
     if [ -f "$map_dir/$full_name" ]; then  # found the mapping file
