@@ -37,7 +37,7 @@ that you run the commands one by one by copying and pasting into the shell."
 . path.sh || { echo "Cannot source path.sh"; exit 1; }
 
 # Set the languages that will actually be processed
-export GP_LANGUAGES="BG KO TH VN"
+export GP_LANGUAGES="CZ FR GE PL PO RU"
 
 function count_spk {
     L=$1
@@ -143,3 +143,55 @@ if [ $stage -le 3 ]; then
     wait;
 fi
 
+# Decode sgmm2_4a
+if [ $stage -le 4 ]; then
+    for L in $GP_LANGUAGES; do
+      if [ -f exp/$L/sgmm2_4a/final.mdl ]; then
+        for lm_suffix in tgpr_sri; do
+            (
+                graph_dir=exp/$L/sgmm2_4a/graph_${lm_suffix}
+                mkdir -p $graph_dir
+                utils/mkgraph.sh data/$L/lang_test_${lm_suffix} exp/$L/sgmm2_4a \
+                                 $graph_dir
+
+                steps/decode_sgmm2.sh --use-fmllr true --nj $( count_spk $L dev ) --cmd "$decode_cmd" \
+                                      --transform-dir exp/$L/tri3/decode_dev_${lm_suffix} \
+                                      $graph_dir data/$L/dev_mfcc \
+                                      exp/$L/sgmm2_4a/decode_dev_${lm_suffix}
+                grep WER exp/$L/sgmm2_4a/decode_dev_${lm_suffix}/wer_* | ./utils/best_wer.sh
+                steps/decode_sgmm2.sh --use-fmllr true --nj $( count_spk $L eval ) --cmd "$decode_cmd" \
+                                      --transform-dir exp/$L/tri3/decode_eval_${lm_suffix} \
+                                      $graph_dir data/$L/eval_mfcc \
+                                      exp/$L/sgmm2_4a/decode_eval_${lm_suffix}
+                grep WER exp/$L/sgmm2_4a/decode_eval_${lm_suffix}/wer_* | ./utils/best_wer.sh
+            ) &
+        done
+      fi
+    done
+    wait;
+fi
+
+# Decode sgmm2_4a_mmi_b0.1
+if [ $stage -le 5 ]; then
+    for L in $GP_LANGUAGES; do
+      if [ -f exp/$L/sgmm2_4a_mmi_b0.1/final.mdl ]; then
+        for lm_suffix in tgpr_sri; do
+            graph_dir=exp/$L/sgmm2_4a/graph_${lm_suffix}
+            for iter in 1 2 3 4; do
+              for test in dev eval; do
+                steps/decode_sgmm2_rescore.sh \
+                    --cmd "$decode_cmd" --iter $iter \
+                    --transform-dir exp/$L/tri3/decode_${test}_${lm_suffix} \
+                    data/$L/lang_test_${lm_suffix} \
+                    data/$L/${test}_mfcc exp/$L/sgmm2_4a/decode_${test}_${lm_suffix} \
+                    exp/$L/sgmm2_4a_mmi_b0.1/decode_${test}_${lm_suffix}_it$iter
+                grep WER exp/$L/sgmm2_4a_mmi_b0.1/decode_${test}_${lm_suffix}_it$iter/wer_* | ./utils/best_wer.sh
+              done
+            done
+            grep WER exp/$L/sgmm2_4a/decode_dev_${lm_suffix}/wer_* | ./utils/best_wer.sh
+            grep WER exp/$L/sgmm2_4a/decode_eval_${lm_suffix}/wer_* | ./utils/best_wer.sh
+        done
+      fi
+    done
+    wait;
+fi

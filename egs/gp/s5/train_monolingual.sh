@@ -43,7 +43,7 @@ that you run the commands one by one by copying and pasting into the shell."
 . path.sh || { echo "Cannot source path.sh"; exit 1; }
 
 # Set the languages that will actually be processed
-export GP_LANGUAGES="SP"
+export GP_LANGUAGES="CZ FR GE PL PO RU"
 
 # Check data is prepared.
 for L in $GP_LANGUAGES; do
@@ -204,6 +204,49 @@ if [ $stage -le 10 ]; then
                                    exp/$L/make_hires/${x} feats/mfcc_hires/$L
             ) &
         done
+    done
+    wait;
+fi
+
+# Train sgmm2, which is SGMM on top of LDA+MLLT+SAT features.
+if [ $stage -le 11 ]; then
+    for L in $GP_LANGUAGES; do
+        (
+            num_states=$(grep "^$L" conf/sgmm.conf | cut -f2)
+            num_substates=$(grep "^$L" conf/sgmm.conf | cut -f3)
+            mkdir -p exp/$L/ubm4a
+            steps/train_ubm.sh --cmd "$train_cmd" \
+                               600 data/$L/train_mfcc data/$L/lang exp/$L/tri3_ali exp/$L/ubm4a
+
+            mkdir -p exp/$L/sgmm2_4a
+            steps/train_sgmm2.sh --cmd "$train_cmd" \
+                                 $num_states $num_substates data/$L/train_mfcc data/$L/lang \
+                                 exp/$L/tri3_ali exp/$L/ubm4a/final.ubm exp/$L/sgmm2_4a
+        ) &
+    done
+    wait;
+fi
+
+# Train discriminative SGMM2+MMI system.
+if [ $stage -le 12 ]; then
+    for L in $GP_LANGUAGES; do
+        (
+            mkdir -p exp/$L/sgmm2_4a_ali
+            steps/align_sgmm2.sh --nj 10 --cmd "$train_cmd" \
+                                 --transform-dir exp/$L/tri3_ali --use-graphs true \
+                                 --use-gselect true data/$L/train_mfcc \
+                                 data/$L/lang exp/$L/sgmm2_4a exp/$L/sgmm2_4a_ali
+
+            mkdir -p exp/$L/sgmm2_4a_denlats
+            steps/make_denlats_sgmm2.sh --nj 10 --sub-split 10 --cmd "$decode_cmd" \
+                                        --transform-dir exp/$L/tri3_ali data/$L/train_mfcc \
+                                        data/$L/lang exp/$L/sgmm2_4a_ali exp/$L/sgmm2_4a_denlats
+            mkdir -p exp/$L/sgmm2_4a_mmi_b0.1
+            steps/train_mmi_sgmm2.sh --cmd "$decode_cmd" \
+                                     --transform-dir exp/$L/tri3_ali --boost 0.1 \
+                                     data/$L/train_mfcc data/$L/lang exp/$L/sgmm2_4a_ali \
+                                     exp/$L/sgmm2_4a_denlats exp/$L/sgmm2_4a_mmi_b0.1
+        ) &
     done
     wait;
 fi
