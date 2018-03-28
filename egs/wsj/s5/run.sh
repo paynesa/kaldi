@@ -23,8 +23,8 @@ decode=true  # set to false to disable the decoding-related scripts.
 #wsj0=/data/corpora0/LDC93S6B
 #wsj1=/data/corpora0/LDC94S13B
 
-wsj0=/export/corpora5/LDC/LDC93S6B
-wsj1=/export/corpora5/LDC/LDC94S13B
+wsj0=/group/corporapublic/wsj/wsj0
+wsj1=/group/corporapublic/wsj/wsj1
 
 
 if [ $stage -le 0 ]; then
@@ -103,7 +103,9 @@ if [ $stage -le 1 ]; then
       steps/decode.sh --nj 10 --cmd "$decode_cmd" exp/mono0a/graph_nosp_tgpr \
         data/test_dev93 exp/mono0a/decode_nosp_tgpr_dev93 && \
       steps/decode.sh --nj 8 --cmd "$decode_cmd" exp/mono0a/graph_nosp_tgpr \
-        data/test_eval92 exp/mono0a/decode_nosp_tgpr_eval92
+                      data/test_eval92 exp/mono0a/decode_nosp_tgpr_eval92
+    grep WER exp/mono0a/decode_nosp_tgpr_dev93/wer_* | ./utils/best_wer.sh
+    grep WER exp/mono0a/decode_nosp_tgpr_eval92/wer_* | ./utils/best_wer.sh
   fi
 fi
 
@@ -124,7 +126,9 @@ if [ $stage -le 2 ]; then
     for data in dev93 eval92; do
       nspk=$(wc -l <data/test_${data}/spk2utt)
       steps/decode.sh --nj $nspk --cmd "$decode_cmd" exp/tri1/graph_nosp_tgpr \
-        data/test_${data} exp/tri1/decode_nosp_tgpr_${data} || exit 1;
+                      data/test_${data} exp/tri1/decode_nosp_tgpr_${data} || exit 1;
+
+      grep WER exp/tri1/decode_nosp_tgpr_$data/wer_* | ./utils/best_wer.sh
 
       # test various modes of LM rescoring (4 is the default one).
       # This is just confirming they're equivalent.
@@ -148,8 +152,6 @@ if [ $stage -le 2 ]; then
   fi
 fi
 
-exit 0 ## TEMP
-
 if [ $stage -le 3 ]; then
   # tri2b.  there is no special meaning in the "b"-- it's historical.
   if $train; then
@@ -167,7 +169,9 @@ if [ $stage -le 3 ]; then
     for data in dev93 eval92; do
       nspk=$(wc -l <data/test_${data}/spk2utt)
       steps/decode.sh --nj ${nspk} --cmd "$decode_cmd" exp/tri2b/graph_nosp_tgpr \
-        data/test_${data} exp/tri2b/decode_nosp_tgpr_${data} || exit 1;
+                      data/test_${data} exp/tri2b/decode_nosp_tgpr_${data} || exit 1;
+
+      grep WER exp/tri2b/decode_nosp_tgpr_$data/wer_* | ./utils/best_wer.sh
 
        # compare lattice rescoring with biglm decoding, going from tgpr to tg.
       steps/decode_biglm.sh --nj ${nspk} --cmd "$decode_cmd" \
@@ -232,9 +236,12 @@ if [ $stage -le 4 ]; then
       steps/decode_fmllr.sh --nj ${nspk} --cmd "$decode_cmd" \
         exp/tri3b/graph_nosp_tgpr data/test_${data} \
         exp/tri3b/decode_nosp_tgpr_${data} || exit 1;
+      grep WER exp/tri3b/decode_nosp_tgpr_$data/wer_* | ./utils/best_wer.sh
+
       steps/lmrescore.sh --cmd "$decode_cmd" \
         data/lang_nosp_test_tgpr data/lang_nosp_test_tg \
         data/test_${data} exp/tri3b/decode_nosp_{tgpr,tg}_${data} || exit 1
+      grep WER exp/tri3b/decode_nosp_tgpr_$data/wer_* | ./utils/best_wer.sh
 
       # decode with big dictionary.
       steps/decode_fmllr.sh --cmd "$decode_cmd" --nj 8 \
@@ -248,6 +255,69 @@ if [ $stage -le 4 ]; then
     done
   fi
 fi
+
+# Train SGMM (see also local/run_sgmm2.sh)
+if [ $stage -le 5 ]; then
+    if $train; then
+        # Align with tri3b
+        steps/align_fmllr.sh \
+            --nj 30 --cmd "$train_cmd" \
+            data/train_si284 data/lang_nosp exp/tri3b exp/tri3b_ali_si284 || exit 1;
+
+        # Train UBM and SGMM
+        steps/train_ubm.sh \
+            --cmd "$train_cmd" \
+            600 data/train_si284 data/lang_nosp exp/tri3b_ali_si284 exp/ubm5b || exit 1;
+        steps/train_sgmm2.sh --cmd "$train_cmd" \
+                             11000 25000 data/train_si284 data/lang_nosp exp/tri3b_ali_si284 \
+                             exp/ubm5b/final.ubm exp/sgmm2_5b || exit 1;
+    fi
+
+    if $decode; then
+        utils/mkgraph.sh data/lang_nosp_test_tgpr exp/sgmm2_5b exp/sgmm2_5b/graph_tgpr
+        steps/decode_sgmm2.sh \
+            --nj 10 --cmd "$decode_cmd" --transform-dir exp/tri3b/decode_nosp_tgpr_dev93 \
+            exp/sgmm2_5b/graph_tgpr data/test_dev93 exp/sgmm2_5b/decode_nosp_tgpr_dev93
+        steps/decode_sgmm2.sh \
+            --nj 8 --cmd "$decode_cmd" --transform-dir exp/tri3b/decode_nosp_tgpr_eval92 \
+            exp/sgmm2_5b/graph_tgpr data/test_eval92 exp/sgmm2_5b/decode_nosp_tgpr_eval92
+        grep WER exp/sgmm2_5b/decode_nosp_tgpr_dev93/wer_* | ./utils/best_wer.sh
+        grep WER exp/sgmm2_5b/decode_nosp_tgpr_eval92/wer_* | ./utils/best_wer.sh
+    fi
+fi
+
+# Train SGMM+MMI (see also local/run_sgmm2.sh)
+if [ $stage -le 6 ]; then
+    if $train; then
+        steps/align_sgmm2.sh \
+            --nj 30 --cmd "$train_cmd" --transform-dir exp/tri3b_ali_si284 \
+            --use-graphs true --use-gselect true \
+            data/train_si284 data/lang_nosp exp/sgmm2_5b exp/sgmm2_5b_ali_si284
+
+        steps/make_denlats_sgmm2.sh \
+            --nj 30 --sub-split 30 --cmd "$decode_cmd" --transform-dir exp/tri3b_ali_si284 \
+            data/train_si284 data/lang_nosp exp/sgmm2_5b_ali_si284 exp/sgmm2_5b_denlats_si284
+
+        steps/train_mmi_sgmm2.sh \
+            --cmd "$decode_cmd" --transform-dir exp/tri3b_ali_si284 --boost 0.1 \
+            data/train_si284 data/lang_nosp exp/sgmm2_5b_ali_si284 exp/sgmm2_5b_denlats_si284 exp/sgmm2_5b_mmi_b0.1
+    fi
+
+    if $decode; then
+        for iter in 1 2 3 4; do
+            for test in dev93 eval92; do # dev93
+                steps/decode_sgmm2_rescore.sh \
+                    --cmd "$decode_cmd" --iter $iter \
+                    --transform-dir exp/tri3b/decode_nosp_tgpr_${test} \
+                    data/lang_nosp_test_tgpr data/test_${test} exp/sgmm2_5b/decode_nosp_tgpr_${test} \
+                    exp/sgmm2_5b_mmi_b0.1/decode_nosp_tgpr_${test}_it$iter
+                grep WER exp/sgmm2_5b_mmi_b0.1/decode_nosp_tgpr_${test}_it$iter/wer_* | ./utils/best_wer.sh
+            done
+        done
+    fi
+fi
+
+exit 0
 
 if [ $stage -le 5 ]; then
   # Estimate pronunciation and silence probabilities.
