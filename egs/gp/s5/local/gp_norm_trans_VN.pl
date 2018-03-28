@@ -33,7 +33,7 @@ Transcript is lowercased by default, but can be uppercased with the -u option.
 use strict;
 use Getopt::Long;
 use Unicode::Normalize;
-use open ':encoding(iso-8859-2)';
+use open ':encoding(utf8)';
 binmode(STDOUT, ":encoding(utf8)");
 
 die "$usage" unless(@ARGV >= 1);
@@ -52,6 +52,8 @@ while (<T>) {
   $trans =~ s/ \,(.*?)\'/ $1/g;  # Remove quotation marks.
   # Remove all special characters  
   $trans =~ s/[\;\:\`\<\>\,\.\-\?\!\@\#\$\%\&\(\)\[\]\{\}\"\/\']/ /g;
+  # Remove underscore in compounds for Vietnamese only.
+  $trans =~ s/_/ /g;
   # Normalize spaces
   $trans =~ s/^\s*//; $trans =~ s/\s*$//; $trans =~ s/\s+/ /g;
 

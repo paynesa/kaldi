@@ -35,7 +35,7 @@ Options:\
 use strict;
 use Getopt::Long;
 use Unicode::Normalize;
-use open ':encoding(iso-8859-2)';
+use open ':encoding(utf8)';
 binmode(STDOUT, ":encoding(utf8)");
 
 die "$usage" unless(@ARGV >= 1);

@@ -64,6 +64,11 @@ fi
 
 for L in $LANGUAGES; do
   lm=$LMDIR/${L}.3gram.lm.gz
+  # Use a custom LM for Korean that's trained on the training data because
+  # the supplied one uses Hangul, but the corpus is romanized.
+  if [ "$L" == "KO" ]; then
+      lm=data/$L/local/lm/3gram.arpa.gz
+  fi
   [ -f $lm ] || { echo "LM '$lm' not found"; exit 1; }
   test=data/$L/lang_test_tg
   if $filter_vocab_sri; then  # use SRILM to change LM vocab

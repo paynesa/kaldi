@@ -35,7 +35,7 @@ Options:\
 use strict;
 use Getopt::Long;
 use Unicode::Normalize;
-use open ':encoding(iso-8859-2)';
+use open ':encoding(utf8)';
 binmode(STDOUT, ":encoding(utf8)");
 
 die "$usage" unless(@ARGV >= 1);
@@ -75,7 +75,9 @@ while (<L>) {
   # First, normalize the pronunciation:
   $pron =~ s/\{//g;
   $pron =~ s/^\s*//; $pron =~ s/\s*$//;  # remove leading or trailing spaces
-  $pron =~ s/ WB\}//g;    
+  $pron =~ s/ WB \}//g;
+  $pron =~ s/ WB\}//g;
+  $pron =~ s/\}//g;
   $pron =~ s/\s+/ /g;  # Normalize spaces
   $pron =~ s/M_//g;    # Get rid of the M_ marker before the phones
 
@@ -95,6 +97,8 @@ while (<L>) {
 
   # Next, normalize the word:
   $word =~ s/\(.*\)//g;  # Pron variants should have same orthography
+  # Remove underscore in compounds for Vietnamese only.
+  #$word =~ s/_/ /g;
   if (defined($uppercase)) {
     $word = uc($word);
   } else {

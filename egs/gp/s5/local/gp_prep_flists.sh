@@ -96,7 +96,11 @@ trans=$tmpdir/trans_rmn.list
 set +e  # Don't exit on error, since some transcripts may not exist
 find $GPDIR/$full_name/rmn -name '*.rmn' > $tmpdir/trans_rmn.list
 num_trans_rmn=$(wc -l $tmpdir/trans_rmn.list | awk '{print $1}')
-find $GPDIR/$full_name/trl -name '*.trl' > $tmpdir/trans_trl.list
+trldir=$GPDIR/$full_name/trl
+if [ "$full_name" == "Thai" ]; then
+    trldir=$GPDIR/Dictionaries/TH/trl-segmented
+fi
+find $trldir -name '*.trl' > $tmpdir/trans_trl.list
 num_trans_trl=$(wc -l $tmpdir/trans_trl.list | awk '{print $1}')
 set -e
 

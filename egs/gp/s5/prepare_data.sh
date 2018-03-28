@@ -69,6 +69,7 @@ done
 for L in $GP_LANGUAGES; do
     local/gp_format_lm.sh --filter-vocab-sri true $GP_LM $L &
 done
+wait;
 
 for L in $GP_LANGUAGES; do
     for x in train dev eval; do

@@ -83,8 +83,13 @@ echo "Done"
 for L in $LANGUAGES; do
   printf "Language - ${L}: normalizing transcripts ... "
   for x in train dev eval; do
-    local/gp_norm_trans_${L}.pl -i data/$L/local/data/${x}_${L}.trans1 \
-      > data/$L/local/data/${x}_${L}.txt;
+      if [ "$L" == "BG" ]; then
+          cp data/$L/local/data/${x}_${L}.trans1 \
+             data/$L/local/data/${x}_${L}.txt
+      else
+          local/gp_norm_trans_${L}.pl -i data/$L/local/data/${x}_${L}.trans1 \
+                              > data/$L/local/data/${x}_${L}.txt;
+      fi
   done
   echo "Done"
 done
