@@ -84,6 +84,7 @@ for lang_index in `seq 0 $[$num_lang-1]`; do
     online_ivector_dir=${online_multi_ivector_dirs[$lang_index]}
   fi
   echo online_ivector_dir = $online_ivector_dir
+  [ -d $egs_dir ] && rm -rd $egs_dir
   if [ ! -d "$egs_dir" ]; then
     echo "$0: Generate egs for ${lang_list[$lang_index]}"
     if [[ $(hostname -f) == *.clsp.jhu.edu ]] && [ ! -d $egs_dir/storage ]; then

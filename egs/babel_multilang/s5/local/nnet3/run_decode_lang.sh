@@ -16,7 +16,7 @@ set -o pipefail
 
 dir=dev10h.pem
 kind=
-use_pitch=true
+use_pitch=false
 use_pitch_ivector=false # If true, pitch feature is used in ivector extraction.
 use_ivector=false
 decode_stage=-1
@@ -24,7 +24,7 @@ nnet3_affix=
 feat_suffix=
 ivector_suffix=
 iter=final
-nj=30
+nj=5
 
 # params for extracting bn features
 use_bnf=false # If true, bottleneck feature is extracted and appended to input
@@ -33,26 +33,18 @@ bnf_nnet_dir=exp/nnet3/multi_bnf_sp # dir for bottlneck nnet3 model
                                     # (used for bottleneck feature extraction)
 use_ivector_bnf=false # If true, ivector used in extracting bottleneck features.
 
-. conf/common_vars.sh || exit 1;
-
 . utils/parse_options.sh
 
-if [ $# -ne 2 ]; then
-  echo "Usage: $(basename $0) --dir <dir-type> <lang> <multilingual-nnet3-dir>"
-  echo " e.g.: $(basename $0) --dir dev2h.pem ASM exp/nnet3/tdnn_multi_sp"
+if [ $# -ne 3 ]; then
+  echo "Usage: $(basename $0) --dir <dir-type> <lang> <multilingual-nnet3-dir> <ivector-extractor-dir"
+  echo " e.g.: $(basename $0) --dir dev2h.pem ASM exp/nnet3/tdnn_multi_sp exp/multi_ivec/1-lang/extractor"
   exit 1
 fi
 
 lang=$1
 nnet3_dir=$2
+ivector_extractor=$3
 
-langconf=conf/$lang/lang.conf
-
-if [ ! -f $langconf ]; then
-  echo "$0: Language configuration $langconf does not exist! Use the "
-  echo "configurations in ../../babel/s5d/conf/lang/$lang-* as a startup." && exit 1
-fi
-. $langconf || exit 1;
 [ -f local.conf ] && . local.conf;
 
 mfcc=mfcc/$lang
@@ -62,18 +54,6 @@ vector_suffix=_gb
 dataset_dir=$data/$dir
 dataset_id=$dir
 dataset_type=${dir%%.*}
-
-#By default, we want the script to accept how the dataset should be handled,
-#i.e. of  what kind is the dataset
-if [ -z ${kind} ] ; then
-  if [ "$dataset_type" == "dev2h" ] || [ "$dataset_type" == "dev10h" ]; then
-    dataset_kind=supervised
-  else
-    dataset_kind=unsupervised
-  fi
-else
-  dataset_kind=$kind
-fi
 
 dataset=$(basename $dataset_dir)
 mfccdir=mfcc_hires/$lang
@@ -104,12 +84,12 @@ fi
 ##
 ####################################################################
 echo ---------------------------------------------------------------------
-echo "Preparing ${dataset_kind} data files in ${dataset_dir} on" `date`
+echo "Preparing ${dir} data files in ${dataset_dir} on" `date`
 echo ---------------------------------------------------------------------
 if [ ! -f  $dataset_dir/.done ] ; then
   if [ ! -f ${nnet3_data_dir}/.mfcc.done ]; then
     echo ---------------------------------------------------------------------
-    echo "Preparing ${dataset_kind} MFCC features in  ${nnet3_data_dir} and corresponding "
+    echo "Preparing ${dir} MFCC features in  ${nnet3_data_dir} and corresponding "
     echo "iVectors in exp/$lang/nnet3${nnet3_affix}/ivectors_${dataset}${feat_suffix}${ivector_suffix} on" `date`
     echo ---------------------------------------------------------------------
     if [ ! -d ${nnet3_data_dir} ]; then
@@ -126,8 +106,7 @@ if [ ! -f  $dataset_dir/.done ] ; then
 fi
 
 ivector_dir=exp/$lang/nnet3${nnet3_affix}/ivectors_${dataset}${ivec_feat_suffix}${ivector_suffix}
-if $use_ivector && [ ! -f $ivector_dir/.ivector.done ];then
-  extractor=exp/multi/nnet3${nnet3_affix}/extractor
+if $use_ivector; then
   ivec_feat_suffix=$feat_suffix
   if $use_pitch && ! $use_pitch_ivector; then
     ivec_feat_suffix=_hires
@@ -139,7 +118,7 @@ if $use_ivector && [ ! -f $ivector_dir/.ivector.done ];then
   fi
 
   steps/online/nnet2/extract_ivectors_online.sh --cmd "$train_cmd" --nj $nj \
-    ${dataset_dir}${ivec_feat_suffix} $extractor $ivector_dir || exit 1;
+    ${dataset_dir}${ivec_feat_suffix} $ivector_extractor $ivector_dir || exit 1;
   touch $ivector_dir/.ivector.done
 fi
 
@@ -179,9 +158,12 @@ fi
 ## nnet3 model decoding
 ##
 ####################################################################
-if [ ! -f exp/$lang/tri5/graph/HCLG.fst ];then
+lm_suffix=tgpr_sri
+graph_dir=exp/$lang/sgmm2_4a/graph_${lm_suffix}
+if [ ! -f ${graph_dir}/HCLG.fst ];then
   utils/mkgraph.sh \
-    data/$lang/lang exp/$lang/tri5 exp/$lang/tri5/graph |tee exp/$lang/tri5/mkgraph.log
+      data/$lang/lang_test_${lm_suffix} exp/$lang/sgmm2_4a \
+      ${graph_dir} |tee exp/$lang/sgmm2_4a/mkgraph.log
 fi
 
 if [ -f $nnet3_dir/$lang/final.mdl ]; then
@@ -207,11 +189,13 @@ if [ -f $nnet3_dir/$lang/final.mdl ]; then
     mkdir -p $decode
     score_opts="--skip-scoring false"
     [ ! -z $iter ] && iter_opt="--iter $iter"
+    dnn_beam=16.0
+    dnn_lat_beam=8.5
     steps/nnet3/decode.sh --nj $nj --cmd "$decode_cmd" $iter_opt \
           --stage $decode_stage \
           --beam $dnn_beam --lattice-beam $dnn_lat_beam \
           $score_opts $ivector_opts \
-          exp/$lang/tri5/graph ${dataset_dir}${feat_suffix} $decode | tee $decode/decode.log
+          ${graph_dir} ${dataset_dir}${feat_suffix} $decode | tee $decode/decode.log
 
     touch $decode/.done
   fi
