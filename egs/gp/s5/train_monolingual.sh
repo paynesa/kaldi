@@ -45,6 +45,9 @@ that you run the commands one by one by copying and pasting into the shell."
 # Set the languages that will actually be processed
 export GP_LANGUAGES="CZ FR GE PL PO RU"
 
+# Feature suffix for DNN training.
+feat_suffix=_mfcc_hires
+
 # Check data is prepared.
 for L in $GP_LANGUAGES; do
     for x in train dev eval; do
@@ -202,6 +205,8 @@ if [ $stage -le 10 ]; then
                 steps/make_mfcc.sh --nj 10 --mfcc-config conf/mfcc_hires.conf \
                                    --cmd "$train_cmd" data/$L/${x}_mfcc_hires \
                                    exp/$L/make_hires/${x} feats/mfcc_hires/$L
+                steps/compute_cmvn_stats.sh data/$L/${x}_mfcc_hires \
+                                            exp/$L/make_hires/${x} feats/mfcc_hires/$L
             ) &
         done
     done
@@ -227,7 +232,7 @@ if [ $stage -le 11 ]; then
     wait;
 fi
 
-# Train discriminative SGMM2+MMI system.
+# Align sgmm2
 if [ $stage -le 12 ]; then
     for L in $GP_LANGUAGES; do
         (
@@ -236,17 +241,25 @@ if [ $stage -le 12 ]; then
                                  --transform-dir exp/$L/tri3_ali --use-graphs true \
                                  --use-gselect true data/$L/train_mfcc \
                                  data/$L/lang exp/$L/sgmm2_4a exp/$L/sgmm2_4a_ali
-
-            mkdir -p exp/$L/sgmm2_4a_denlats
-            steps/make_denlats_sgmm2.sh --nj 10 --sub-split 10 --cmd "$decode_cmd" \
-                                        --transform-dir exp/$L/tri3_ali data/$L/train_mfcc \
-                                        data/$L/lang exp/$L/sgmm2_4a_ali exp/$L/sgmm2_4a_denlats
-            mkdir -p exp/$L/sgmm2_4a_mmi_b0.1
-            steps/train_mmi_sgmm2.sh --cmd "$decode_cmd" \
-                                     --transform-dir exp/$L/tri3_ali --boost 0.1 \
-                                     data/$L/train_mfcc data/$L/lang exp/$L/sgmm2_4a_ali \
-                                     exp/$L/sgmm2_4a_denlats exp/$L/sgmm2_4a_mmi_b0.1
         ) &
     done
     wait;
 fi
+
+# Train discriminative SGMM2+MMI system (don't need this for alignments).
+# if [ $stage -le 12 ]; then
+#     for L in $GP_LANGUAGES; do
+#         (
+#             mkdir -p exp/$L/sgmm2_4a_denlats
+#             steps/make_denlats_sgmm2.sh --nj 10 --sub-split 10 --cmd "$decode_cmd" \
+#                                         --transform-dir exp/$L/tri3_ali data/$L/train_mfcc \
+#                                         data/$L/lang exp/$L/sgmm2_4a_ali exp/$L/sgmm2_4a_denlats
+#             mkdir -p exp/$L/sgmm2_4a_mmi_b0.1
+#             steps/train_mmi_sgmm2.sh --cmd "$decode_cmd" \
+#                                      --transform-dir exp/$L/tri3_ali --boost 0.1 \
+#                                      data/$L/train_mfcc data/$L/lang exp/$L/sgmm2_4a_ali \
+#                                      exp/$L/sgmm2_4a_denlats exp/$L/sgmm2_4a_mmi_b0.1
+#         ) &
+#     done
+#     wait;
+# fi

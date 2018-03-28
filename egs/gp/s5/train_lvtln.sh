@@ -47,6 +47,8 @@ if [ "$stage" -le 0 ] && [ "$feats" == "mfcc" ]; then
             $KALDI_ROOT/egs/sre08/v1/sid/compute_vad_decision.sh data/$L/${x}_mfcc exp/$L/vad_log vad/$L
             mkdir data/$L/${x}_plp/
             cp data/$L/${x}_mfcc/vad.scp data/$L/${x}_plp/
+            cp data/$L/${x}_mfcc/vad.scp data/$L/${x}_mfcc_hires/
+            cp data/$L/${x}_mfcc/vad.scp data/$L/${x}/
         done
     done
 fi
@@ -54,58 +56,75 @@ fi
 # Train diagonal UBM.
 if [ "$stage" -le 1 ]; then
     for L in $GP_LANGUAGES; do
-        $KALDI_ROOT/egs/sre08/v1/sid/train_diag_ubm.sh \
-            --nj 16 --cmd "$train_cmd" \
-            data/$L/train_$feats 1024 exp/$L/diag_ubm_$feats
+        (
+            $KALDI_ROOT/egs/sre08/v1/sid/train_diag_ubm.sh \
+                --nj 16 --cmd "$train_cmd" \
+                data/$L/train_$feats 1024 exp/$L/diag_ubm_$feats
+        ) &
     done
+    wait;
 fi
 
 # Train LVTLN model.
 if [ "$stage" -le 2 ]; then
     for L in $GP_LANGUAGES; do
-        $KALDI_ROOT/egs/lre/v1/lid/train_lvtln_model.sh \
-            --nj 16 --cmd "$train_cmd" --base_feat_type "$feats" \
-            data/$L/train_$feats exp/$L/diag_ubm_$feats exp/$L/vtln_$feats
+        (
+            $KALDI_ROOT/egs/lre/v1/lid/train_lvtln_model.sh \
+                --nj 16 --cmd "$train_cmd" --base-feat-type "mfcc" \
+                --mfcc-config conf/mfcc.conf \
+                data/$L/train_$feats exp/$L/diag_ubm_$feats exp/$L/vtln_$feats
+        ) &
     done
+    wait;
 fi
 
 # Compute VTLN warp factors.
 if [ "$stage" -le 3 ]; then
     for L in $GP_LANGUAGES; do
-        for x in dev eval; do
-            $KALDI_ROOT/egs/lre/v1/lid/get_vtln_warps.sh --nj 4 --cmd "$train_cmd" \
-                data/$L/${x}_$feats exp/$L/vtln_$feats exp/$L/vtln_$feats/$x
-        done
+        (
+            for x in dev eval; do
+                $KALDI_ROOT/egs/lre/v1/lid/get_vtln_warps.sh \
+                    --nj 4 --cmd "$train_cmd" \
+                    data/$L/${x}_$feats exp/$L/vtln_$feats exp/$L/vtln_$feats/$x
+            done
+        ) &
     done
+    wait;
 fi
 
 # Generate VTLN adapted features.
 if [ "$stage" -le 4 ]; then
     for L in $GP_LANGUAGES; do
-        # Set up new data folders.
-        for x in train dev eval; do
-            data="data/$L/${x}_$feats"
-            data_vtln="data/$L/${x}_${feats}_vtln"
-            copy_data_dir.sh $data $data_vtln
+        (
+            # Set up new data folders.
+            for x in train dev eval; do
+                # data="data/$L/${x}_$feats"
+                # data_vtln="data/$L/${x}_${feats}_vtln"
+                # copy_data_dir.sh $data $data_vtln
 
-            if [ $x == "train" ]; then
-                cp exp/$L/vtln_$feats/final.warp $data_vtln/utt2warp
-            else
-                cp exp/$L/vtln_$feats/$x/utt2warp $data_vtln/
-            fi
-        done
+                # if [ $x == "train" ]; then
+                #     cp exp/$L/vtln_$feats/final.warp $data_vtln/utt2warp
+                # else
+                #     cp exp/$L/vtln_$feats/$x/utt2warp $data_vtln/
+                # fi
+                cp exp/$L/vtln_$feats/$x/utt2warp "data/$L/${x}_${feats}_vtln"
+                copy_data_dir.sh "data/$L/${x}_mfcc" "data/$L/${x}_${feats}_vtln"
+                cp exp/$L/vtln_$feats/$x/utt2warp "data/$L/${x}_${feats}_vtln"
+            done
 
-        # Generate new features.
-        featsdir=feats/${feats}_vtln/$L
-        for x in train dev eval; do
-            (
-                data_vtln="data/$L/${x}_${feats}_vtln"
-                steps/make_$feats.sh \
-                    --nj 6 --cmd "$train_cmd" $data_vtln \
-                    exp/$L/make_${feats}_vtln/$x $featsdir;
-                steps/compute_cmvn_stats.sh \
-                    $data_vtln exp/$L/make_$feats/$x $featsdir;
-            ) &
-        done
+            # Generate new features.
+            featsdir=feats/${feats}_vtln/$L
+            for x in train dev eval; do
+                (
+                    data_vtln="data/$L/${x}_${feats}_vtln"
+                    steps/make_mfcc.sh \
+                        --nj 6 --cmd "$train_cmd" $data_vtln \
+                        exp/$L/make_${feats}_vtln/$x $featsdir;
+                    steps/compute_cmvn_stats.sh \
+                        $data_vtln exp/$L/make_$feats/$x $featsdir;
+                ) &
+            done
+        ) &
     done
+    wait;
 fi

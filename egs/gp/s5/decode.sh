@@ -58,10 +58,10 @@ if [ $stage -le 0 ]; then
                                      $graph_dir
 
                     steps/decode.sh --nj $( count_spk $L dev ) --cmd "$decode_cmd" $graph_dir data/$L/dev_mfcc \
-                                    exp/$L/mono/decode_dev_${lm_suffix}
+                                    exp/$L/mono/decode_dev_${lm_suffix} &
                     grep WER exp/$L/mono/decode_dev_${lm_suffix}/wer_* | ./utils/best_wer.sh 
                     steps/decode.sh --nj $( count_spk $L eval ) --cmd "$decode_cmd" $graph_dir data/$L/eval_mfcc \
-                                    exp/$L/mono/decode_eval_${lm_suffix}
+                                    exp/$L/mono/decode_eval_${lm_suffix} &
                     grep WER exp/$L/mono/decode_eval_${lm_suffix}/wer_* | ./utils/best_wer.sh 
                 ) &
             done
