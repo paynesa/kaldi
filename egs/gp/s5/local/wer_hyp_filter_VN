@@ -1,0 +1,2 @@
+#!/bin/bash
+perl -p -e 's/(?<!\d)_(?!\d)/ /g'

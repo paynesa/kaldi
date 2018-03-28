@@ -29,9 +29,19 @@ for f in $symtab $dir/lat.1.gz $data/text; do
   [ ! -f $f ] && echo "score.sh: no such file $f" && exit 1;
 done
 
+hyp_filtering_cmd="cat"
+ref_filtering_cmd="cat"
+if [[ $data = *"/VN/"* ]]; then
+    [ -x local/wer_hyp_filter_VN ] && hyp_filtering_cmd="local/wer_hyp_filter_VN"
+fi
+if [[ $data = *"/KO/"* ]]; then
+    [ -x local/wer_out_filter_KO ] && hyp_filtering_cmd="local/wer_out_filter_KO"
+    [ -x local/wer_out_filter_KO ] && ref_filtering_cmd="local/wer_out_filter_KO"
+fi
+
 mkdir -p $dir/scoring/log
 
-cat $data/text | sed 's:<NOISE>::g' | sed 's:<SPOKEN_NOISE>::g' > $dir/scoring/test_filt.txt
+cat $data/text | sed 's:<NOISE>::g' | sed 's:<SPOKEN_NOISE>::g' | $ref_filtering_cmd > $dir/scoring/test_filt.txt
 
 $cmd LMWT=$min_lmwt:$max_lmwt $dir/scoring/log/best_path.LMWT.log \
   lattice-best-path --lm-scale=LMWT --word-symbol-table=$symtab \
@@ -40,7 +50,8 @@ $cmd LMWT=$min_lmwt:$max_lmwt $dir/scoring/log/best_path.LMWT.log \
 # Note: the double level of quoting for the sed command
 $cmd LMWT=$min_lmwt:$max_lmwt $dir/scoring/log/score.LMWT.log \
    cat $dir/scoring/LMWT.tra \| \
-    utils/int2sym.pl -f 2- $symtab \| sed 's:\<unk\>::g' \| \
+   utils/int2sym.pl -f 2- $symtab \| sed 's:\<unk\>::g' \| \
+   $hyp_filtering_cmd \| \
     compute-wer --text --mode=present \
      ark:$dir/scoring/test_filt.txt  ark,p:- ">&" $dir/wer_LMWT || exit 1;
 
