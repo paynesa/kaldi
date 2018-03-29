@@ -38,7 +38,7 @@ that you run the commands one by one by copying and pasting into the shell."
 GP_CORPUS=/group/corporapublic/global_phone/
 
 # Set the languages that will actually be processed
-export GP_LANGUAGES="SP"
+export GP_LANGUAGES="PO"
 
 # Compute energy-based VAD.
 if [ "$stage" -le 0 ] && [ "$feats" == "mfcc" ]; then
@@ -70,8 +70,7 @@ if [ "$stage" -le 2 ]; then
     for L in $GP_LANGUAGES; do
         (
             $KALDI_ROOT/egs/lre/v1/lid/train_lvtln_model.sh \
-                --nj 16 --cmd "$train_cmd" --base-feat-type "mfcc" \
-                --mfcc-config conf/mfcc.conf \
+                --nj 16 --cmd "$train_cmd" --base-feat-type "$feats" \
                 data/$L/train_$feats exp/$L/diag_ubm_$feats exp/$L/vtln_$feats
         ) &
     done
@@ -98,18 +97,15 @@ if [ "$stage" -le 4 ]; then
         (
             # Set up new data folders.
             for x in train dev eval; do
-                # data="data/$L/${x}_$feats"
-                # data_vtln="data/$L/${x}_${feats}_vtln"
-                # copy_data_dir.sh $data $data_vtln
+                data="data/$L/${x}_$feats"
+                data_vtln="data/$L/${x}_${feats}_vtln"
+                copy_data_dir.sh $data $data_vtln
 
-                # if [ $x == "train" ]; then
-                #     cp exp/$L/vtln_$feats/final.warp $data_vtln/utt2warp
-                # else
-                #     cp exp/$L/vtln_$feats/$x/utt2warp $data_vtln/
-                # fi
-                cp exp/$L/vtln_$feats/$x/utt2warp "data/$L/${x}_${feats}_vtln"
-                copy_data_dir.sh "data/$L/${x}_mfcc" "data/$L/${x}_${feats}_vtln"
-                cp exp/$L/vtln_$feats/$x/utt2warp "data/$L/${x}_${feats}_vtln"
+                if [ $x == "train" ]; then
+                    cp exp/$L/vtln_$feats/final.warp $data_vtln/utt2warp
+                else
+                    cp exp/$L/vtln_$feats/$x/utt2warp $data_vtln/
+                fi
             done
 
             # Generate new features.
@@ -117,7 +113,7 @@ if [ "$stage" -le 4 ]; then
             for x in train dev eval; do
                 (
                     data_vtln="data/$L/${x}_${feats}_vtln"
-                    steps/make_mfcc.sh \
+                    steps/make_$feats.sh \
                         --nj 6 --cmd "$train_cmd" $data_vtln \
                         exp/$L/make_${feats}_vtln/$x $featsdir;
                     steps/compute_cmvn_stats.sh \
