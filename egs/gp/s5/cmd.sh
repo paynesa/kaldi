@@ -16,6 +16,11 @@
 # export highmem_cmd="queue.pl -P inf_hcrc_cstr_general -pe memory-2G 2"
 
 # To run locally, use:
-export train_cmd=run.pl
-export decode_cmd=run.pl
-export highmem_cmd=run.pl
+#export train_cmd=run.pl
+#export decode_cmd=run.pl
+#export highmem_cmd=run.pl
+
+#For running on CLIP cluster
+export train_cmd="slurm.pl --config conf/slurm.conf"
+export decode_cmd="slurm.pl --config conf/slurm.conf --mem 2G"
+export highmem_cmd="slurm.pl --config conf/slurm.conf"
