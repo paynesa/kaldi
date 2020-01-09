@@ -93,7 +93,7 @@ grep -v -f $tmpdir/dev_spk -f $tmpdir/eval_spk $tmpdir/all_spk \
 
 use_romanized=true
 trans=$tmpdir/trans_rmn.list
-set +e  # Don't exit on error, since some transcripts may not exist
+set +e  # Dont exit on error, since some transcripts may not exist
 find $GPDIR/$full_name/rmn -name '*.rmn' > $tmpdir/trans_rmn.list
 num_trans_rmn=$(wc -l $tmpdir/trans_rmn.list | awk '{print $1}')
 trldir=$GPDIR/$full_name/trl
@@ -127,7 +127,7 @@ for x in dev eval train; do
   # and those need to be removed from the file lists.
   # Unfortunately this needs to be done here, since sox doesn't play nice when
   # called directly from compute-mfcc-feats as a piped command.
-  gp_convert_audio.sh --input-list=$ODIR/${x}_${LCODE}.flist \
+  local/gp_convert_audio.sh --input-list=$ODIR/${x}_${LCODE}.flist \
     --output-dir=$WDIR/$LCODE/wav \
     --output-list=$ODIR/${x}_${LCODE}_wav.flist
 
