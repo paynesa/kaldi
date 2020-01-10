@@ -18,15 +18,15 @@ export PATH=$PWD/utils/:$KALDI_ROOT/tools/openfst/bin:$PWD:$PATH
 
 # If the correct version of shorten and sox are not on the path,
 # the following will be set by local/gp_check_tools.sh
-SHORTEN_BIN=/group/project/cstr2/enno/zero/kaldi_globalphone/tools/shorten-3.6.1/bin
+SHORTEN_BIN=$PWD/tools/shorten-3.6.1/bin
 # e.g. $PWD/tools/shorten-3.6.1/bin
-SOX_BIN=/opt/local/stow/sox-14.4.2/bin/sox
+SOX_BIN=$PWD/tools/sox-14.3.2/bin
 # e.g. $PWD/tools/sox-14.3.2/bin
 
 export PATH=$PATH:$SHORTEN_BIN
 export PATH=$SOX_BIN:$PATH
 
 # Set the locations of the GlobalPhone corpus and language models
-export GP_CORPUS=/fs/clip-realspeech/corpora/GP_tmp
-export GP_LM=$PWD/language_models
+export GP_CORPUS=/fs/clip-realspeech/projects/bnfs/gpdata
+export GP_LM=/fs/clip-realspeech/projects/bnfs/gplms
 export ALIGN_DIR=$PWD/language_models

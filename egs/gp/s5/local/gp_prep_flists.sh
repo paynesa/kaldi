@@ -141,7 +141,7 @@ for x in dev eval train; do
   # Now, get the transcripts: each line of the output contains an utterance 
   # ID followed by the transcript.
   sed -e 's?_$??' $tmpdir/${x}_spk | grep -f - $trans \
-    | gp_extract_transcripts.pl | sort -k1,1 > $tmpdir/${x}_${LCODE}.trans
+    | local/gp_extract_transcripts.pl | sort -k1,1 > $tmpdir/${x}_${LCODE}.trans
 
   # Intersect the set of utterances with transcripts with the set of those
   # with valid audio.
